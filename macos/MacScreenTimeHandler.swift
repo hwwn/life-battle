@@ -9,7 +9,7 @@ class MacScreenTimeHandler: NSObject, FlutterPlugin {
         let instance = MacScreenTimeHandler()
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
-
+    
     // 定义应用类别枚举
     enum AppCategory: String {
         case productivity = "生产力工具"
@@ -30,9 +30,11 @@ class MacScreenTimeHandler: NSObject, FlutterPlugin {
         "com.sublimetext.4": .development,
         "com.jetbrains.intellij": .development,
         "com.cursor.Cursor": .development,
+        "com.DanPristupov.Fork": .development,
         
         // 浏览器
         "com.google.Chrome": .browser,
+        "com.microsoft.Edge": .browser,
         "com.apple.Safari": .browser,
         "org.mozilla.firefox": .browser,
         
@@ -46,6 +48,7 @@ class MacScreenTimeHandler: NSObject, FlutterPlugin {
         "com.microsoft.Excel": .productivity,
         "com.microsoft.Word": .productivity,
         "com.apple.mail": .productivity,
+        "com.apple.WebKit.WebContent": .productivity,
         
         // 娱乐
         "com.spotify.client": .entertainment,
@@ -56,35 +59,19 @@ class MacScreenTimeHandler: NSObject, FlutterPlugin {
         "com.steam.Steam": .game
     ]
     
+    private var appUsage: [String: TimeInterval] = [:]
+    private var lastAppName: String?
+    private var lastSwitchTime: Date = Date()
+    private var categoryUsage: [AppCategory: TimeInterval] = [:]
+    
     private func getAppCategory(_ bundleIdentifier: String?) -> AppCategory {
         guard let bundleId = bundleIdentifier else { return .other }
         return appCategories[bundleId] ?? .other
     }
     
-    // 按类别存储使用时间
-    private var categoryUsage: [AppCategory: TimeInterval] = [:]
-    
-    private func updateAppUsage() {
-        let workspace = NSWorkspace.shared
-        if let activeApp = workspace.frontmostApplication {
-            let currentAppName = activeApp.localizedName ?? "Unknown"
-            let currentAppId = activeApp.bundleIdentifier ?? "Unknown"
-            let category = getAppCategory(currentAppId)
-            let now = Date()
-            
-            if let lastApp = lastAppName {
-                let duration = now.timeIntervalSince(lastSwitchTime)
-                appUsage[lastApp, default: 0] += duration
-                
-                // 更新类别使用时间
-                let lastCategory = getAppCategory(activeApp.bundleIdentifier)
-                categoryUsage[lastCategory, default: 0] += duration
-                
-                print("App: \(lastApp), Category: \(lastCategory.rawValue), Duration: \(duration) seconds")
-            }
-            
-            lastAppName = currentAppName
-            lastSwitchTime = now
+    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        if call.method == "getScreenTime" {
+            handleScreenTimeRequest(result: result)
         }
     }
     
@@ -108,46 +95,43 @@ class MacScreenTimeHandler: NSObject, FlutterPlugin {
         }
         usageData["categories"] = categoryData
         
-        result(usageData)
-    }
-    
-    private var appUsage: [String: TimeInterval] = [:]
-    private var lastAppName: String?
-    private var lastSwitchTime: Date = Date()
-    
-    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        if call.method == "getScreenTime" {
-            handleScreenTimeRequest(result: result)
-        }
-    }
-    
-    private func handleScreenTimeRequest(result: @escaping FlutterResult) {
-        updateAppUsage()
-        let usageData = appUsage.mapValues { Int($0 / 60) } // 转换为分钟
+        // 添加调试输出
+        print("发送数据到 Flutter:")
+        print("应用使用时间: \(appUsageMinutes)")
+        print("类别使用时间: \(categoryData)")
+        
         result(usageData)
     }
     
     private func updateAppUsage() {
-       let workspace = NSWorkspace.shared
-       if let activeApp = workspace.frontmostApplication {
-           let currentAppName = activeApp.localizedName ?? "Unknown"
-           let now = Date()
-           
-           if let lastApp = lastAppName {
-               let duration = now.timeIntervalSince(lastSwitchTime)
-               appUsage[lastApp, default: 0] += duration
-               print("App: \(lastApp), Duration: \(duration) seconds") // 添加调试输出
-           }
-           
-           lastAppName = currentAppName
-           lastSwitchTime = now
-       }
-   }
+        let workspace = NSWorkspace.shared
+        if let activeApp = workspace.frontmostApplication {
+            let currentAppName = activeApp.localizedName ?? "Unknown"
+            let now = Date()
+            
+            if let lastApp = lastAppName {
+                let duration = now.timeIntervalSince(lastSwitchTime)
+                appUsage[lastApp, default: 0] += duration
+                
+                // 更新类别使用时间
+                let lastCategory = getAppCategory(activeApp.bundleIdentifier)
+                categoryUsage[lastCategory, default: 0] += duration
+                
+                print("App: \(lastApp), Category: \(lastCategory.rawValue), Duration: \(duration) seconds")
+            }
+            
+            lastAppName = currentAppName
+            lastSwitchTime = now
+        }
+    }
     
     override init() {
         super.init()
+        print("开始初始化定时器")
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            print("定时器触发")
             self.updateAppUsage()
         }
+        print("定时器初始化完成")
     }
 }
