@@ -108,12 +108,12 @@ class MacScreenTimeHandler: NSObject, FlutterPlugin {
         "com.netflix.Netflix": .entertainment,
         "com.bilibili.player": .entertainment,
         "com.tencent.QQMusic": .entertainment,
-        "com.neteasemusic.163music": .entertainment,
+        "com.netease.163music": .entertainment,
 
         // 社交媒体应用（有害）
         "com.instagram.Instagram": .socialMedia,
         "com.zhiliaoapp.musically": .socialMedia,  // TikTok/抖音
-        "com.xingin.xiaohongshu": .socialMedia,  // 小红书
+        "com.xingin.discover": .socialMedia,  // 小红书
 
         // 教育
         "com.apple.iBooks": .education,
@@ -141,51 +141,51 @@ class MacScreenTimeHandler: NSObject, FlutterPlugin {
     private func handleScreenTimeRequest(result: @escaping FlutterResult) {
         updateAppUsage()
 
-        // 创建包含应用信息和类别的数据结构
         var usageData: [String: Any] = [:]
+        var appData: [String: Any] = [:]
 
-        // 应用使用时间
-        let appUsageMinutes = appUsage.mapValues { Int($0 / 60) }
-        usageData["apps"] = appUsageMinutes
+        for (bundleId, duration) in appUsage {
+            let minutes = Int(duration / 60)
+            let category = appCategories[bundleId] ?? .other
 
-        // 类别使用时间
-        let categoryUsageMinutes = categoryUsage.mapValues { Int($0 / 60) }
-        let categoryData = categoryUsageMinutes.map { (category, minutes) in
-            return [
-                "category": category.rawValue,
+            // 获取应用的本地化名称
+            let appName =
+                NSWorkspace.shared.runningApplications
+                .first { $0.bundleIdentifier == bundleId }?
+                .localizedName ?? bundleId
+
+            appData[appName] = [
+                "bundleId": bundleId,
                 "minutes": minutes,
+                "category": category.rawValue,
+                "isBeneficial": category.isBeneficial,
+                "creatureType": category.creatureType,
             ]
         }
-        usageData["categories"] = categoryData
 
-        // 添加调试输出
-        print("发送数据到 Flutter:")
-        print("应用使用时间: \(appUsageMinutes)")
-        print("类别使用时间: \(categoryData)")
-
+        usageData["apps"] = appData
         result(usageData)
     }
 
     private func updateAppUsage() {
         let workspace = NSWorkspace.shared
         if let activeApp = workspace.frontmostApplication {
-            let currentAppName = activeApp.localizedName ?? "Unknown"
+            let currentAppId = activeApp.bundleIdentifier ?? "Unknown"
             let now = Date()
 
-            if let lastApp = lastAppName {
+            if lastAppName != nil {  // 使用 != nil 替代 if let
                 let duration = now.timeIntervalSince(lastSwitchTime)
-                appUsage[lastApp, default: 0] += duration
+                appUsage[currentAppId, default: 0] += duration
 
-                // 更新类别使用时间
-                let lastCategory = getAppCategory(activeApp.bundleIdentifier)
+                let lastCategory = getAppCategory(currentAppId)
                 categoryUsage[lastCategory, default: 0] += duration
 
                 print(
-                    "App: \(lastApp), Category: \(lastCategory.rawValue), Duration: \(duration) seconds"
+                    "App: \(activeApp.localizedName ?? currentAppId) (\(currentAppId)), Category: \(lastCategory.rawValue), Duration: \(duration) seconds"
                 )
             }
 
-            lastAppName = currentAppName
+            lastAppName = currentAppId
             lastSwitchTime = now
         }
     }

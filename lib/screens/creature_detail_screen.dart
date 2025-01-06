@@ -84,6 +84,13 @@ class CreatureDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
+            creature.bundleId, // 显示 bundle ID
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+            ),
+          ),
+          Text(
             creature.isBeneficial ? '善良生物' : '邪恶生物',
             style: TextStyle(
               color: creature.isBeneficial
@@ -93,6 +100,7 @@ class CreatureDetailScreen extends StatelessWidget {
               fontSize: 16,
             ),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );

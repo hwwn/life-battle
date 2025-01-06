@@ -1,12 +1,14 @@
 class Creature {
-  final String name;
-  final String type;
+  final String name; // 应用名称
+  final String bundleId; // bundle ID
+  final String type; // 生物类型
   final bool isBeneficial;
   final Duration usage;
   final int level;
 
   Creature({
     required this.name,
+    required this.bundleId,
     required this.type,
     required this.isBeneficial,
     required this.usage,
@@ -25,13 +27,15 @@ class Creature {
 
   // 从应用使用数据创建生物
   factory Creature.fromAppUsage(
-    String appName,
+    String name,
+    String bundleId,
     String creatureType,
     bool isBeneficial,
     Duration usage,
   ) {
     return Creature(
-      name: appName,
+      name: name,
+      bundleId: bundleId,
       type: creatureType,
       isBeneficial: isBeneficial,
       usage: usage,

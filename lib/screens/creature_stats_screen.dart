@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'creature_detail_screen.dart';
 import '../models/creature.dart';
-import '../services/usage_service.dart';
 import '../widgets/animated_creature_card.dart';
 
 class CreatureStatsScreen extends StatefulWidget {
@@ -12,7 +12,7 @@ class CreatureStatsScreen extends StatefulWidget {
 }
 
 class _CreatureStatsScreenState extends State<CreatureStatsScreen> {
-  final UsageService _usageService = UsageService();
+  static const platform = MethodChannel('app/screen_time');
   List<Creature> _creatures = [];
   bool _isLoading = true;
 
@@ -25,19 +25,18 @@ class _CreatureStatsScreenState extends State<CreatureStatsScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _usageService.getAppUsage();
-      final appUsage = data['appUsage'] as Map<String, Duration>;
+      final Map result = await platform.invokeMethod('getScreenTime');
+      final Map appsData = result['apps'] as Map;
 
       // 将应用使用数据转换为生物列表
-      final creatures = appUsage.entries.map((entry) {
-        // 这里需要从 native 端获取应用类别信息
-        final isBeneficial = true; // 临时默认值，后续需要根据实际类别判断
-        final creatureType = "未知生物"; // 临时默认值，后续需要根据实际类别判断
+      final creatures = appsData.entries.map((entry) {
+        final appInfo = entry.value as Map;
         return Creature.fromAppUsage(
           entry.key,
-          creatureType,
-          isBeneficial,
-          entry.value,
+          appInfo['bundleId'] as String,
+          appInfo['creatureType'] as String? ?? "未知生物",
+          appInfo['isBeneficial'] as bool? ?? true,
+          Duration(minutes: appInfo['minutes'] as int),
         );
       }).toList();
 
